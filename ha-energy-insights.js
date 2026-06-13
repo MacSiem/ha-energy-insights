@@ -734,6 +734,8 @@ class HaEnergyInsights extends HTMLElement {
 
   // ── Lovelace card size ───────────────────────────────────────────────────
   getCardSize() { return 4; }
+
+  getGridOptions() { return { rows: 8, columns: 12, min_rows: 3, min_columns: 6 }; }
 }
 
 customElements.define('ha-energy-insights', HaEnergyInsights);
