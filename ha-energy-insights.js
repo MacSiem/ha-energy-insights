@@ -1,6 +1,6 @@
 /**
  * HA Energy Insights - Lovelace Card
- * v1.0.0 - HACS-ready Home Assistant energy monitoring card
+ * v1.0.1 - HACS-ready Home Assistant energy monitoring card
  * https://github.com/MacSiem/ha-energy-insights
  */
 
