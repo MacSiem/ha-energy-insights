@@ -1,22 +1,20 @@
 /**
  * HA Energy Insights - Lovelace Card
- * v1.0.1 - HACS-ready Home Assistant energy monitoring card
+ * v1.0.2 - HACS-ready Home Assistant energy monitoring card
  * https://github.com/MacSiem/ha-energy-insights
  */
 
-const CARD_VERSION = '1.0.0';
-
-// Load Chart.js dynamically
-function loadChartJs() {
-  return new Promise((resolve, reject) => {
-    if (window.Chart) return resolve(window.Chart);
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
-    script.onload = () => resolve(window.Chart);
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-}
+const CARD_VERSION = '1.0.2';
+const escapeHtml = (value) => String(value == null ? '' : value).replace(
+  /[&<>"']/g,
+  character => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  })[character],
+);
 
 const STYLES = `
   :host {
@@ -200,13 +198,42 @@ const STYLES = `
     border-radius: 2px;
     transition: width 0.4s ease;
   }
-  /* Chart */
+  /* Dependency-free chart */
   .chart-container {
-    position: relative;
+    display: flex;
+    align-items: stretch;
+    gap: 3px;
     height: 200px;
     margin-bottom: 8px;
+    padding: 8px 2px 24px;
+    border-bottom: 1px solid var(--divider-color, rgba(255,255,255,0.1));
   }
-  canvas { max-width: 100%; }
+  .chart-column {
+    display: flex;
+    flex: 1 1 0;
+    min-width: 0;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: stretch;
+    position: relative;
+  }
+  .chart-bar {
+    min-height: 2px;
+    background: var(--accent-color, #ff9800);
+    opacity: 0.75;
+    border-radius: 3px 3px 0 0;
+  }
+  .chart-column:hover .chart-bar { opacity: 1; }
+  .chart-tick {
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 50%;
+    transform: translateX(-50%) rotate(-35deg);
+    transform-origin: top center;
+    color: var(--secondary-text-color, #9e9e9e);
+    font-size: 9px;
+    white-space: nowrap;
+  }
   /* Loading / error */
   .loading {
     display: flex;
@@ -275,8 +302,6 @@ class HaEnergyInsights extends HTMLElement {
     this._data = null;
     this._loading = true;
     this._error = null;
-    this._charts = {};
-    this._chartJsReady = false;
     this._fetchPromise = null;
   }
 
@@ -311,20 +336,6 @@ class HaEnergyInsights extends HTMLElement {
       this._render();
       this._fetchData();
     }
-  }
-
-  connectedCallback() {
-    loadChartJs().then(() => {
-      this._chartJsReady = true;
-      if (this._data) this._renderCharts();
-    }).catch(() => {
-      console.warn('[ha-energy-insights] Chart.js failed to load');
-    });
-  }
-
-  disconnectedCallback() {
-    Object.values(this._charts).forEach(c => { try { c.destroy(); } catch(e){} });
-    this._charts = {};
   }
 
   // ── Data fetching ────────────────────────────────────────────────────────
@@ -365,7 +376,6 @@ class HaEnergyInsights extends HTMLElement {
       this._data.weekCost = this._data.thisWeekKwh * this._config.energy_cost_per_kwh;
       this._loading = false;
       this._render();
-      if (this._chartJsReady) this._renderCharts();
     } catch (err) {
       console.error('[ha-energy-insights]', err);
       this._error = err.message || 'Failed to load data';
@@ -512,7 +522,7 @@ class HaEnergyInsights extends HTMLElement {
     if (this._loading) {
       html += `<div class="loading"><div class="spinner"></div><span>Wczytywanie danych&hellip;</span></div>`;
     } else if (this._error) {
-      html += `<div class="error-msg">&#x26A0; ${this._error}</div>`;
+      html += `<div class="error-msg">&#x26A0; ${escapeHtml(this._error)}</div>`;
     } else {
       html += this._renderTabs();
       html += `<div class="tab-content">`;
@@ -534,7 +544,7 @@ class HaEnergyInsights extends HTMLElement {
       <div class="card-header">
         <div class="card-title">
           <svg viewBox="0 0 24 24"><path d="M11 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6M9 7h6M9 11h4M9 15h2M19 16v6M16 19l3-3 3 3"/></svg>
-          ${title}
+          ${escapeHtml(title)}
         </div>
         <div class="header-right">
           <span class="card-version">v${CARD_VERSION}</span>
@@ -560,7 +570,7 @@ class HaEnergyInsights extends HTMLElement {
   _renderOverview() {
     if (!this._data) return '';
     const d = this._data;
-    const cur = this._config.currency || 'PLN';
+    const cur = escapeHtml(this._config.currency || 'PLN');
     const fmt = v => v.toFixed(2);
     const trendDiff = d.prevWeekKwh > 0
       ? ((d.thisWeekKwh - d.prevWeekKwh) / d.prevWeekKwh * 100)
@@ -577,7 +587,7 @@ class HaEnergyInsights extends HTMLElement {
     html += `<div class="stat-card"><div class="stat-label">Trend</div><div class="stat-value"><span class="trend-badge ${trendClass}">${trendIcon} ${trendLabel}</span></div><div class="stat-sub">vs poprzedni tydzie\u0144</div></div>`;
     html += `</div>`;
 
-    html += `<div class="recommendation"><span class="recommendation-icon">&#x1F4A1;</span>${rec}</div>`;
+    html += `<div class="recommendation"><span class="recommendation-icon">&#x1F4A1;</span>${escapeHtml(rec)}</div>`;
 
     if (d.topDevices && d.topDevices.length > 0) {
       const maxKwh = d.topDevices[0].kwh || 1;
@@ -590,7 +600,7 @@ class HaEnergyInsights extends HTMLElement {
         html += `
           <div class="device-row">
             <div class="device-rank">#${i + 1}</div>
-            <div class="device-name" title="${dev.entity_id}">${dev.name}</div>
+            <div class="device-name" title="${escapeHtml(dev.entity_id)}">${escapeHtml(dev.name)}</div>
             <div class="device-bar-wrap"><div class="device-bar" style="width:${pct}%"></div></div>
             <div class="device-value">${valStr}</div>
           </div>`;
@@ -609,12 +619,29 @@ class HaEnergyInsights extends HTMLElement {
       weekly: 'Zu\u017cycie dzienne (7 dni)',
       monthly: 'Zu\u017cycie dzienne (30 dni)'
     };
+    const chartDefs = {
+      daily: { data: this._data?.dailyData || [], labels: this._buildHourLabels(24) },
+      weekly: { data: this._data?.weeklyData || [], labels: this._buildDayLabels(7) },
+      monthly: { data: this._data?.monthlyData || [], labels: this._buildDayLabels(30) },
+    };
+    const def = chartDefs[period] || { data: [], labels: [] };
+    const values = def.data.map(value => Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0);
+    const max = Math.max(...values, 0);
+    const costRate = Number.isFinite(Number(this._config.energy_cost_per_kwh))
+      ? Number(this._config.energy_cost_per_kwh)
+      : 0;
+    const currency = escapeHtml(this._config.currency || 'PLN');
+    const columns = values.map((value, index) => {
+      const height = max > 0 ? Math.max(1, (value / max) * 100) : 1;
+      const label = escapeHtml(def.labels[index] || '');
+      const title = escapeHtml(`${def.labels[index] || ''}: ${value.toFixed(3)} kWh (${(value * costRate).toFixed(2)} ${this._config.currency || 'PLN'})`);
+      const showTick = values.length <= 7 || index % Math.ceil(values.length / 8) === 0;
+      return `<div class="chart-column" title="${title}"><div class="chart-bar" style="height:${height}%"></div>${showTick ? `<span class="chart-tick">${label}</span>` : ''}</div>`;
+    }).join('');
     return `
       <div class="section-title">${labels[period] || ''}</div>
-      <div class="chart-container">
-        <canvas id="chart-${period}"></canvas>
-      </div>
-      <div class="chart-label">kWh &bull; ${this._config.currency || 'PLN'} @ ${this._config.energy_cost_per_kwh}/kWh</div>`;
+      <div class="chart-container" role="img" aria-label="${escapeHtml(labels[period] || '')}">${columns}</div>
+      <div class="chart-label">kWh &bull; ${currency} @ ${costRate}/kWh</div>`;
   }
 
   _getRecommendation(trendDiff, todayKwh) {
@@ -624,75 +651,6 @@ class HaEnergyInsights extends HTMLElement {
     if (todayKwh > 20)  return 'Wysokie zu\u017cycie dzi\u015b \u2014 sprawd\u017a urz\u0105dzenia o du\u017cej mocy.';
     if (todayKwh < 1)   return 'Bardzo niskie zu\u017cycie dzi\u015b. Wszystko wygl\u0105da dobrze!';
     return 'Zu\u017cycie energii w normie. Kontynuuj monitorowanie.';
-  }
-
-  // ── Charts ───────────────────────────────────────────────────────────────
-
-  _renderCharts() {
-    if (!window.Chart || !this._data) return;
-    const shadow = this.shadowRoot;
-
-    const chartDefs = {
-      daily:   { data: this._data.dailyData,   labels: this._buildHourLabels(24) },
-      weekly:  { data: this._data.weeklyData,   labels: this._buildDayLabels(7) },
-      monthly: { data: this._data.monthlyData,  labels: this._buildDayLabels(30) }
-    };
-
-    if (this._activeTab in chartDefs) {
-      const def = chartDefs[this._activeTab];
-      const canvasId = `chart-${this._activeTab}`;
-      const canvas = shadow.getElementById(canvasId);
-      if (!canvas) return;
-
-      if (this._charts[this._activeTab]) {
-        try { this._charts[this._activeTab].destroy(); } catch(e) {}
-      }
-
-      const accentColor = getComputedStyle(this).getPropertyValue('--accent-color').trim() || '#ff9800';
-      const textColor = getComputedStyle(this).getPropertyValue('--secondary-text-color').trim() || '#9e9e9e';
-
-      this._charts[this._activeTab] = new window.Chart(canvas, {
-        type: 'bar',
-        data: {
-          labels: def.labels,
-          datasets: [{
-            label: 'kWh',
-            data: def.data,
-            backgroundColor: accentColor + '99',
-            borderColor: accentColor,
-            borderWidth: 1,
-            borderRadius: 3
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              callbacks: {
-                label: ctx => {
-                  const kwh = ctx.raw || 0;
-                  const cost = (kwh * this._config.energy_cost_per_kwh).toFixed(2);
-                  return ` ${kwh.toFixed(3)} kWh  (${cost} ${this._config.currency || 'PLN'})`;
-                }
-              }
-            }
-          },
-          scales: {
-            x: {
-              ticks: { color: textColor, font: { size: 10 }, maxRotation: 45 },
-              grid: { color: 'rgba(255,255,255,0.05)' }
-            },
-            y: {
-              ticks: { color: textColor, font: { size: 10 } },
-              grid: { color: 'rgba(255,255,255,0.05)' },
-              beginAtZero: true
-            }
-          }
-        }
-      });
-    }
   }
 
   _buildDayLabels(days) {
@@ -722,7 +680,6 @@ class HaEnergyInsights extends HTMLElement {
       tab.addEventListener('click', () => {
         this._activeTab = tab.dataset.tab;
         this._render();
-        if (this._chartJsReady && this._data) this._renderCharts();
       });
     });
 
@@ -738,7 +695,9 @@ class HaEnergyInsights extends HTMLElement {
   getGridOptions() { return { rows: 8, columns: 12, min_rows: 3, min_columns: 6 }; }
 }
 
-customElements.define('ha-energy-insights', HaEnergyInsights);
+if (!customElements.get('ha-energy-insights')) {
+  customElements.define('ha-energy-insights', HaEnergyInsights);
+}
 
 window.customCards = window.customCards || [];
 window.customCards.push({

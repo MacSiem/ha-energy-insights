@@ -2,6 +2,13 @@
 
 All notable changes to **HA Energy Insights** are documented here.
 
+## [1.0.2] - 2026-08-28
+
+### Security and reliability
+- Removed runtime loading of Chart.js from jsDelivr; charts now render locally with dependency-free HTML/CSS.
+- Escaped configuration, error, entity, and Home Assistant runtime values after string coercion.
+- Guarded the custom-element registration and aligned the in-card version surfaces at `1.0.2`.
+
 ## [1.0.0] - 2026-03-24
 
 ### Added

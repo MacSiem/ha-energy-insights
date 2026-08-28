@@ -1,0 +1,27 @@
+name: HACS Validation
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  schedule:
+    - cron: "0 4 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: HACS Action
+        uses: hacs/action@main
+        with:
+          category: plugin
+      - name: Security and syntax regression
+        run: |
+          node --check ha-energy-insights.js
+          node tests/security-regression.test.cjs

@@ -12,7 +12,7 @@
 
 | Feature | Description |
 |---|---|
-| 📊 **4-tab Dashboard** | Overview · Today · Week · Month |
+| 📊 **4-tab Dashboard** | Overview · Today · Week · Month, rendered without third-party runtime scripts |
 | 💰 **Cost Tracking** | Configurable cost per kWh with currency |
 | 🔌 **Top 5 Devices** | Auto-discovers sensors with `kWh` / `W` / `Wh` units |
 | 📈 **Trend Badge** | This week vs previous week comparison |
@@ -81,7 +81,7 @@ No manual entity configuration needed.
 ## Requirements
 
 - Home Assistant 2023.1.0+
-- Internet access for Chart.js CDN (or self-host and modify the script URL)
+- No external CDN or internet dependency at runtime
 
 ---
 
