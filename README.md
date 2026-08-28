@@ -74,7 +74,7 @@ No manual entity configuration needed.
 
 ## Screenshots
 
-> _(screenshots coming soon)_
+![HA Energy Insights overview](docs/preview.png)
 
 ---
 
